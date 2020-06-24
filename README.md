@@ -14,4 +14,8 @@ This repo host R scripts to estimate the effective reproduction number ("Re") of
  * `phu-group.csv`: Grouping of multiple PHUs (reported cases are aggregated within the group).
 
 
+## To investigate
 
+ * identify importations?
+ * quantify testing/reporting delays?
+ * well-identified transmission chains for very low counts settings? (Blumberg's method?)
