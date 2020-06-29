@@ -309,7 +309,7 @@ plot_R <- function(Rest, first.date,
     alpha.rib  = 0.3
     alpha.line = 0.9
     col.R      = 'steelblue2'
-    axisdate   = create_axis(first.date, last.date)
+    axisdate   = create_axis(first.date, last.date = lubridate::today())
     
     g.R = ggplot(df.R, aes(x=date_end))+
         report.grad + 
@@ -356,7 +356,7 @@ plot_cases <- function(phu, df, first.date, date.type,
         filter(date > first.date) %>%
         fill_dates()
     
-    axisdate = create_axis(first.date, last.date = max(dfs$date))
+    axisdate = create_axis(first.date, last.date = lubridate::today())
     
     report.grad = reporting_gradient(dfs, reporting.lag)
     
@@ -374,15 +374,18 @@ plot_cases <- function(phu, df, first.date, date.type,
         ylab('Count') +
         xlab(paste(date.type,'date')) +
         ggtitle(phu, subtitle = date.type)
+    g
     return(g)
 }
 
 #' Plot cases used for a grouped public health unit.
-plot_cases_group <- function(group.number, df, first.date, date.type, reporting.lag = 7) {
+plot_cases_group <- function(group.number, df, first.date, 
+                             date.type, 
+                             reporting.lag = 7) {
     
     df.grp = group_phu_data(group.number, df, first.date)
     
-    axisdate = create_axis(first.date, last.date = max(df.grp$date))
+    axisdate = create_axis(first.date, last.date = lubridate::today())
     
     report.grad = reporting_gradient(df.grp, reporting.lag)
     

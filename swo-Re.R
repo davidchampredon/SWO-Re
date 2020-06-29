@@ -41,6 +41,9 @@ si_stdv = 4.75 # Standard deviation in days
 # https://www.jwatch.org/na51171/2020/03/27/serial-interval-covid-19
 # https://pubmed.ncbi.nlm.nih.gov/32145466/
 
+# Reporting lag. 
+# This is just used for display, it is not used in calculations.
+reporting.lag = 6  # in days
 
 
 # ---- Re Estimation ----
@@ -50,7 +53,7 @@ si_stdv = 4.75 # Standard deviation in days
 figname = paste0('plot-R-w',window.size,'-si',si_mean,'.pdf')
 pdf(file = figname)
 
-for(i in 1:n){  # i=3
+for(i in 1:n){  # i=6
     
     # Public Health Unit selection:
     phu = phus[i]
@@ -65,8 +68,8 @@ for(i in 1:n){  # i=3
                        si.type = 'uncertain')
     
     # Plots:
-    g.R = plot_R(Rest, first.date, title = phu )
-    g   = plot_cases(phu, df, first.date, date.type)
+    g   = plot_cases(phu, df, first.date, date.type, reporting.lag = reporting.lag)
+    g.R = plot_R(Rest, first.date, title = phu, reporting.lag = reporting.lag )
     gridExtra::grid.arrange(g, g.R, ncol=1)
 }
 dev.off()
