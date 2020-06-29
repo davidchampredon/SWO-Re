@@ -1,3 +1,10 @@
+# --- Outputs ---
+
+plot*.pdf
+
+
+# --- R STUFF ---
+
 # History files
 .Rhistory
 .Rapp.history
