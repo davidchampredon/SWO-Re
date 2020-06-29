@@ -61,7 +61,17 @@ plot_data <- function(df) {
     plot(g)
 }
 
-
+#' Fill-in the missing dates with 0:
+fill_dates <- function(dfs,
+                       first.date, 
+                       until.today = TRUE) {
+    last.d = lubridate::today()
+    if(!until.today) last.d = max(dfs$date)
+    dd = data.frame(date = seq(first.date, last.d, by = '1 day'))
+    dj = left_join(dd, dfs, by='date')
+    dj$n[is.na(dj$n)] <- 0
+    return(dj)
+}
 
 #' Group the data of multiple Public Health Units.
 #'
@@ -84,7 +94,7 @@ group_phu_data <- function(group.number, df, first.date) {
         summarize(n = sum(n_unit))
     
     # Fill in the missing dates:
-    dj = fill_dates(dfs)
+    dj = fill_dates(dfs, first.date)
     
     return(dj)
 }
@@ -138,13 +148,7 @@ setup_epiestim <- function(window.size, n.obs, si_mean, si_stdv) {
                 window.size=window.size))
 }
 
-#' Fill-in the missing dates with 0:
-fill_dates <- function(dfs) {
-    dd = data.frame(date = seq(first.date, max(dfs$date), by = '1 day'))
-    dj = left_join(dd,dfs, by='date')
-    dj$n[is.na(dj$n)] <- 0
-    return(dj)
-}
+
 
 #' Calculate the effective reproduction number (aka. R or Re or Rt)
 #' using the R package EpiEstim.
@@ -170,7 +174,7 @@ calc_R_unit <- function(phu, df, window.size,
         filter(date > first.date)
     
     # Fill in the missing dates:
-    dj = fill_dates(dfs)
+    dj = fill_dates(dfs, first.date)
     
     # Setup before Re estimation:
     z = setup_epiestim(window.size, 
@@ -184,7 +188,6 @@ calc_R_unit <- function(phu, df, window.size,
     config = usi
     if(si.type=='parametric') config = si
     
-    
     # Re estimation using EpiEstim:
     R.est = EpiEstim::estimate_R(incid = dj$n, 
                                  method = paste(si.type,'si',sep="_"),
@@ -192,7 +195,7 @@ calc_R_unit <- function(phu, df, window.size,
     
     # Reformat results:
     df.R = R.est$R %>%
-        mutate(date_end = max(dfs$date) + t_end - max(t_end)) %>%
+        mutate(date_end = max(dj$date) + t_end - max(t_end)) %>%
         rename(m = `Mean(R)`, 
                qlo = `Quantile.0.025(R)`, 
                qhi = `Quantile.0.975(R)`)
@@ -354,7 +357,7 @@ plot_cases <- function(phu, df, first.date, date.type,
     dfs = df %>% 
         filter(Reporting_PHU == phu) %>%
         filter(date > first.date) %>%
-        fill_dates()
+        fill_dates(first.date = first.date)
     
     axisdate = create_axis(first.date, last.date = lubridate::today())
     
