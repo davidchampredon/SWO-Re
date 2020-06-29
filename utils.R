@@ -7,6 +7,7 @@ library(EpiEstim)
 
 #' Retrieve the data from Ontario's MoH publicly available line list.
 #' Warning: The URL may have to be updated.
+#' NOTE: interactive URL:  https://data.ontario.ca/dataset/confirmed-positive-cases-of-covid-19-in-ontario/resource/455fd63b-603d-4608-8216-7d8647f43350
 get_data <- function() {
     url = "https://data.ontario.ca/dataset/f4112442-bdc8-45d2-be3c-12efae72fb27/resource/455fd63b-603d-4608-8216-7d8647f43350/download/conposcovidloc.csv"
     dat = read.csv(url)
@@ -17,11 +18,13 @@ get_data <- function() {
 #' @param dat Dataframe as returned by \code{get_data()}.
 #' @param date.type String. Type of date selected \code{specimen} or \code{episode}.
 #' @param phu.filename String. Path to the file that specifies the public health units selected.
+#' @param remove.travel Logical. Remove travel related cases? Removing travel-related cases implicitly assumes that those identified cases were isolated and do not contribute to local chain of transmissions.
 #' @return A dataframe.
 #' 
 digest_data <- function(dat, 
                         date.type = 'specimen',
-                        phu.filename = 'phus.csv') {
+                        phu.filename = 'phus.csv',
+                        remove.travel = TRUE) {
     # DEBUG:
     # unique(dat$Reporting_PHU)
     
@@ -31,6 +34,11 @@ digest_data <- function(dat,
         dat = mutate(dat, date = lubridate::ymd(Specimen_Date))
     if(date.type == 'episode')
         dat = mutate(dat, date = lubridate::ymd(Accurate_Episode_Date))
+    
+    # Travel related cases:
+    if(remove.travel){
+        dat = filter(dat, Case_AcquisitionInfo != 'Travel')
+    }
     
     # Calculate incidence for each date:    
     df = dat %>%
@@ -258,8 +266,31 @@ create_axis <- function(first.date, last.date) {
                         date_minor_breaks = '1 week'))
 }
 
+#' Create the gradient shaded area indicating the reporting lag.
+reporting_gradient <- function(df, reporting.lag){
+    td = lubridate::today()
+    
+    if ('n' %in% names(df)) y.max = max(df$n+1)
+    if ('m' %in% names(df)) y.max = max(df$m+1)
+    
+    
+    dd = data.frame(xmin = td - seq(1,reporting.lag,by=0.5),
+                    xmax = td,
+                    ymin = 0,
+                    ymax = y.max)
+    gr = geom_rect(data = dd, 
+                   inherit.aes = FALSE,
+                   aes(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax),
+                   fill = 'tomato2',
+                   alpha = 0.06)
+    return(gr)
+}
+
+
 #' Plot estimates of Re over time. 
-plot_R <- function(Rest, first.date, title='') {
+plot_R <- function(Rest, first.date, 
+                   reporting.lag = 7, 
+                   title='') {
     
     # Unpack:
     df.R   = Rest$df.R
@@ -271,6 +302,8 @@ plot_R <- function(Rest, first.date, title='') {
     last.R.hi = round(df.R$qhi[nrow(df.R)],2)
     last.date = max(df.R$date_end)
     
+    report.grad = reporting_gradient(df.R, reporting.lag)
+    
     # Cosmetics: 
     last.shift = 9
     alpha.rib  = 0.3
@@ -279,7 +312,8 @@ plot_R <- function(Rest, first.date, title='') {
     axisdate   = create_axis(first.date, last.date)
     
     g.R = ggplot(df.R, aes(x=date_end))+
-        geom_hline(yintercept = 1, linetype='dashed')+
+        report.grad + 
+        geom_hline(yintercept = 1, linetype='dashed') +
         geom_ribbon(aes(ymin = qlo,
                         ymax = qhi), 
                     alpha = alpha.rib,
@@ -311,8 +345,12 @@ plot_R <- function(Rest, first.date, title='') {
     return(g.R)
 }
 
+
+
+
 #' Plot cases used for a specific public health unit.
-plot_cases <- function(phu, df, first.date, date.type) {
+plot_cases <- function(phu, df, first.date, date.type, 
+                       reporting.lag = 7) {
     dfs = df %>% 
         filter(Reporting_PHU == phu) %>%
         filter(date > first.date) %>%
@@ -320,13 +358,19 @@ plot_cases <- function(phu, df, first.date, date.type) {
     
     axisdate = create_axis(first.date, last.date = max(dfs$date))
     
+    report.grad = reporting_gradient(dfs, reporting.lag)
+    
     g = dfs %>%
-        ggplot(aes(x=date, y=n))+
+        ggplot(aes(x=date, y=n)) +
+        # -- Reporting lag
+        report.grad +
+        # -- Data
         geom_step()+
         geom_point(size=1)+
         axisdate +
         theme(panel.grid.minor.y = element_blank()) +
         scale_y_continuous(limits=c(0,max(dfs$n+1)))+
+        
         ylab('Count') +
         xlab(paste(date.type,'date')) +
         ggtitle(phu, subtitle = date.type)
@@ -334,15 +378,18 @@ plot_cases <- function(phu, df, first.date, date.type) {
 }
 
 #' Plot cases used for a grouped public health unit.
-plot_cases_group <- function(group.number, df, first.date, date.type) {
+plot_cases_group <- function(group.number, df, first.date, date.type, reporting.lag = 7) {
     
     df.grp = group_phu_data(group.number, df, first.date)
     
     axisdate = create_axis(first.date, last.date = max(df.grp$date))
     
+    report.grad = reporting_gradient(df.grp, reporting.lag)
+    
     g = df.grp %>%
         ggplot(aes(x=date, y=n))+
-        geom_step()+
+        report.grad + 
+        geom_step() +
         geom_point(size=1)+
         axisdate +
         theme(panel.grid.minor.y = element_blank()) +
