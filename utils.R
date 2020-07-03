@@ -34,6 +34,10 @@ digest_data <- function(dat,
         dat = mutate(dat, date = lubridate::ymd(Specimen_Date))
     if(date.type == 'episode')
         dat = mutate(dat, date = lubridate::ymd(Accurate_Episode_Date))
+    if(date.type == 'case')
+        dat = mutate(dat, date = lubridate::ymd(Case_Reported_Date))
+    if(date.type == 'test')
+        dat = mutate(dat, date = lubridate::ymd(Test_Reported_Date))
     
     # Travel related cases:
     if(remove.travel){
